@@ -1,5 +1,7 @@
-from src.cajal.run_gw import compute_gw_distance_matrix
-from src.cajal.utilities import (
+import sys
+sys.path.insert(0, '../src')
+from cajal.run_gw import compute_gw_distance_matrix
+from cajal.utilities import (
     read_gw_dists,
     read_gw_couplings,
     cell_iterator_csv,
@@ -31,3 +33,9 @@ def test():
     avg_shape_spt(
         names, gw_dists, cell_icdms, gw_coupling_mat_dict=gw_coupling_mat_dict, k=7
     )
+    
+    
+if __name__ == "__main__":
+    test()
+    print("passed")
+

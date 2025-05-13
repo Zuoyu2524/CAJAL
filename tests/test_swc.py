@@ -3,8 +3,11 @@ import math
 from shutil import rmtree
 from typing import Union
 
-from src.cajal.utilities import Err
-from src.cajal.swc import (
+import sys
+sys.path.insert(0, '../src')
+
+from cajal.utilities import Err
+from cajal.swc import (
     batch_filter_and_preprocess,
     cell_iterator,
     default_name_validate,
@@ -190,3 +193,9 @@ def test_2():
 
 def test_diagnostics():
     diagnostics("tests/swc", lambda forest: None, 1)
+    
+if __name__ == "__main__":
+    test_1()
+    test_2()
+    test_diagnostics()
+    print("passed")

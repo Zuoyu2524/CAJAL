@@ -21,8 +21,8 @@
 
 int myCMessage(int a, int b) { return a+b; }
 
-int EMD_wrap(int n1, int n2, double *X, double *Y, double *D, double *G,
-                double* alpha, double* beta, double *cost, uint64_t maxIter)  {
+int EMD_wrap(int n1, int n2, float *X, float *Y, float *D, float *G,
+                float* alpha, float* beta, float *cost, uint64_t maxIter)  {
     // beware M and C are stored in row major C style!!!
 
     using namespace lemon;
@@ -35,6 +35,7 @@ int EMD_wrap(int n1, int n2, double *X, double *Y, double *D, double *G,
     n=0;
     for (int i=0; i<n1; i++) {
         double val=*(X+i);
+        // printf("%f is Xval \n", val);
         if (val>0) {
             n++;
         }else if(val<0){
@@ -44,6 +45,7 @@ int EMD_wrap(int n1, int n2, double *X, double *Y, double *D, double *G,
     m=0;
     for (int i=0; i<n2; i++) {
         double val=*(Y+i);
+        // printf("%f is Yval \n", val);
         if (val>0) {
             m++;
         }else if(val<0){
@@ -116,7 +118,6 @@ int EMD_wrap(int n1, int n2, double *X, double *Y, double *D, double *G,
 
     return ret;
 }
-
 
 
 

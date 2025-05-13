@@ -9,8 +9,8 @@ from .gw_cython import intersection
 np.import_array()
 from math import ceil,sqrt
 
-DTYPE=np.float64
-ctypedef np.float_t DTYPE_t
+DTYPE=np.float32
+ctypedef np.float32_t DTYPE_t
 
 
 def slb(np.ndarray[DTYPE_t,ndim=1] f, np.ndarray[DTYPE_t,ndim=1] g):

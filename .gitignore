@@ -162,6 +162,10 @@ src/cajal/*.html
 # Test scripts
 
 tests/debug*
+tests/swc_test_out
+tests/test_mem/out
+tests/test_time/out
+
 
 # Magit
 *rej

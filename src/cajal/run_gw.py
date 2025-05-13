@@ -87,7 +87,7 @@ csv
                 (
                     cell_id,
                     ell[0],
-                    squareform(np.array([float(x) for x in ell[1:]], dtype=np.float64)),
+                    squareform(np.array([float(x) for x in ell[1:]], dtype=np.float32)),
                 )
                 for (cell_id, ell) in outer_batch
             ]
@@ -106,7 +106,7 @@ csv
                             cell_id,
                             ell[0],
                             squareform(
-                                np.array([float(x) for x in ell[1:]], dtype=np.float64)
+                                np.array([float(x) for x in ell[1:]], dtype=np.float32)
                             ),
                         )
                         for (cell_id, ell) in inner_batch
@@ -213,11 +213,11 @@ def csv_output_writer(
     if write_gw_coupling_mats:
         np.savez(
             gw_coupling_mat_npz,
-            first_names=np.array(first_names),
-            second_names=np.array(second_names),
-            coo_data=np.stack(coo_data),
-            coo_row=np.stack(coo_row),
-            coo_col=np.stack(coo_col),
+            first_names=np.array(first_names, dtype=np.float32),
+            second_names=np.array(second_names, dtype=np.float32),
+            coo_data=np.stack(coo_data, dtype=np.float32),
+            coo_row=np.stack(coo_row, dtype=np.float32),
+            coo_col=np.stack(coo_col, dtype=np.float32),
         )
 
 
@@ -276,12 +276,13 @@ def gw_pairwise_parallel(
     for A, a in cells:
         GW_cells.append(GW_cell(A, a))
     num_cells = len(cells)
-    gw_dmat = np.zeros((num_cells, num_cells))
+    gw_dmat = np.zeros((num_cells, num_cells), dtype=np.float32)
     if return_coupling_mats is not None:
         gw_coupling_mats = []
     NN = len(GW_cells)
     total_num_pairs = int((NN * (NN - 1)) / 2)
-    ij = tqdm(it.combinations(range(num_cells), 2), total=total_num_pairs)
+    # ij = tqdm(it.combinations(range(num_cells), 2), total=total_num_pairs)
+    ij = it.combinations(range(num_cells), 2)
     with Pool(
         initializer=_init_gw_pool, initargs=(GW_cells,), processes=num_processes
     ) as pool:

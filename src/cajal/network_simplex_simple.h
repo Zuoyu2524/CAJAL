@@ -37,7 +37,7 @@
 #undef _EPSILON
 #undef MAX_DEBUG_ITER
 #define EPSILON 2.2204460492503131e-15
-#define _EPSILON 1e-8
+#define _EPSILON 1e-6
 #define MAX_DEBUG_ITER 100000
 
 

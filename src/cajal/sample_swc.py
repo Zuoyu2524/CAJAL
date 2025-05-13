@@ -125,7 +125,7 @@ def _binary_stepwise_search(forest: SWCForest, num_samples: int) -> float:
 
 def get_sample_pts_euclidean(
     forest: SWCForest, step_size: float
-) -> list[tuple[npt.NDArray[np.float64], int]]:
+) -> list[tuple[npt.NDArray[np.float32], int]]:
     """
     Sample points uniformly throughout the forest, starting at the roots, \
      at the given step size.
@@ -135,18 +135,18 @@ def get_sample_pts_euclidean(
     arrays of shape (3,). The list length depends (inversely) \
     on the value of `step_size`.
     """
-    sample_pts_list: list[npt.NDArray[np.float64]] = []
+    sample_pts_list: list[npt.NDArray[np.float32]] = []
     for tree in forest:
         sample_pts_list.append(
-            (np.array(tree.root.coord_triple), tree.root.structure_id)
+            (np.array(tree.root.coord_triple, dtype=np.float32), tree.root.structure_id)
         )
     treelist = [(tree, 0.0) for tree in forest]
     while bool(treelist):
         new_treelist: list[tuple[NeuronTree, float]] = []
         for tree, offset in treelist:
-            root_triple = np.array(tree.root.coord_triple)
+            root_triple = np.array(tree.root.coord_triple, dtype=np.float32)
             for child_tree in tree.child_subgraphs:
-                child_triple = np.array(child_tree.root.coord_triple)
+                child_triple = np.array(child_tree.root.coord_triple, dtype=np.float32)
                 dist = euclidean(root_triple, child_triple)
                 assert step_size >= offset
                 num_nodes, leftover = _count_nodes_helper(
@@ -178,7 +178,7 @@ def get_sample_pts_euclidean(
 
 def euclidean_point_cloud(
     forest: SWCForest, num_samples: int
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int32]]:
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.int32]]:
     r"""
     Compute the (Euclidean) point cloud matrix for the forest with n sample points.
 
@@ -187,20 +187,20 @@ def euclidean_point_cloud(
     :return: A rectangular matrix of shape (n,3), and an array of their structure ids.
     """
     if len(forest) >= num_samples:
-        pts: list[npt.NDArray[np.float64]] = []
+        pts: list[npt.NDArray[np.float32]] = []
         structure_ids: list[npt.NDArray[np.int32]] = []
         for i in range(num_samples):
-            pts.append(np.array(forest[i].root.coord_triple))
+            pts.append(np.array(forest[i].root.coord_triple, dtype=np.float32))
             structure_ids.append(forest[i].root.structure_id)
     else:
         step_size = _binary_stepwise_search(forest, num_samples)
         pts, structure_ids = zip(*get_sample_pts_euclidean(forest, step_size))
-    return np.stack(pts), np.array(structure_ids, dtype=np.int32)
+    return np.stack(pts, dtype=np.float32), np.array(structure_ids, dtype=np.int32)
 
 
 def icdm_euclidean(
     forest: SWCForest, num_samples: int
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.int32]]:
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.int32]]:
     r"""
     Compute the (Euclidean) intracell distance matrix for the forest with n sample points.
 
@@ -433,7 +433,7 @@ def read_preprocess_compute_euclidean(
     file_name: str,
     n_sample: int,
     preprocess: Callable[[SWCForest], Union[Err[T], SWCForest]],
-) -> Union[Err[T], tuple[npt.NDArray[np.float64], npt.NDArray[np.int32]]]:
+) -> Union[Err[T], tuple[npt.NDArray[np.float32], npt.NDArray[np.int32]]]:
     r"""
     Read the swc file, apply a preprocessor, and compute the Euclidean distance matrix.
 
@@ -548,7 +548,7 @@ def compute_icdm_all_euclidean(
     cell_names, file_paths = get_filenames(infolder, name_validate)
     assert len(cell_names) == len(file_paths)
 
-    def rpce(file_path: str) -> Union[Err[T], npt.NDArray[np.float64]]:
+    def rpce(file_path: str) -> Union[Err[T], npt.NDArray[np.float32]]:
         return read_preprocess_compute_euclidean(file_path, n_sample, preprocess)
 
     # args = zip([file_paths,repeat(n_sample),repeat(preprocess)])
@@ -556,7 +556,8 @@ def compute_icdm_all_euclidean(
     failed_cells: list[tuple[str, Err[T]]]
 
     pool = ProcessPool(nodes=num_processes)
-    results = tqdm(pool.imap(rpce, file_paths), total=len(cell_names))
+    # results = tqdm(pool.imap(rpce, file_paths), total=len(cell_names))
+    results = pool.imap(rpce, file_paths)
     failed_cells = write_fn(
         out_csv, n_sample, zip(cell_names, results), 10, out_node_types=out_node_types
     )

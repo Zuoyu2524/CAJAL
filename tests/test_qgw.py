@@ -1,5 +1,8 @@
-from src.cajal.qgw import slb_parallel
-from src.cajal.combined_slb_qgw import combined_slb_quantized_gw
+import sys
+sys.path.insert(0, '../src')
+
+from cajal.qgw import slb_parallel
+from cajal.combined_slb_qgw import combined_slb_quantized_gw
 import os
 
 
@@ -23,3 +26,9 @@ def test_combined_slb_quantized_gw():
         verbose=False,
         chunksize=20,
     )
+    
+
+if __name__ == "__main__":
+    test_slb_parallel()
+    test_combined_slb_quantized_gw()
+    print("passed")

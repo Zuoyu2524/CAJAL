@@ -22,7 +22,7 @@ from scipy.sparse import lil_matrix
 from scipy import sparse
 
 cdef extern from "EMD.h":
-    int EMD_wrap(int n1, int n2, double *X, double *Y, double *D, double *G, double* alpha, double* beta, double *cost, uint64_t maxIter) nogil
+    int EMD_wrap(int n1, int n2, float *X, float *Y, float *D, float *G, float* alpha, float* beta, float *cost, uint64_t maxIter) nogil
     cdef enum ProblemType: INFEASIBLE, OPTIMAL, UNBOUNDED, MAX_ITER_REACHED
 # cdef extern from "EMD.h":
 #     int EMD_wrap(int n1,int n2, double *X, double *Y,double *D, double *G, double* alpha, double* beta, double *cost, uint64_t maxIter) nogil
@@ -33,8 +33,8 @@ cdef extern from "EMD.h":
 cdef extern from "stdlib.h":
     int RAND_MAX
 
-DTYPE=np.float64
-ctypedef np.float_t DTYPE_t
+DTYPE=np.float32
+ctypedef np.float32_t DTYPE_t
 
 
 @cython.boundscheck(False)  # Deactivate bounds checking
@@ -103,20 +103,20 @@ cpdef gw_cython_init_cost(
     cdef int result_code
     cdef DTYPE_t cost=0.0
     cdef DTYPE_t newcost=0.0
-    cdef np.ndarray[double, ndim=1, mode="c"] alpha=np.zeros(n)
-    cdef np.ndarray[double, ndim=1, mode="c"] beta=np.zeros(m)
+    cdef np.ndarray[float, ndim=1, mode="c"] alpha=np.zeros(n, dtype=DTYPE)
+    cdef np.ndarray[float, ndim=1, mode="c"] beta=np.zeros(m, dtype=DTYPE)
     cdef np.ndarray[DTYPE_t, ndim=2, mode="c"] neg2_PB
-    cdef np.ndarray[double, ndim=2, mode="c"] AP=np.zeros((n,m),dtype=DTYPE,order='C')
-    cdef np.ndarray[np.float64_t,ndim=2,mode='c'] P = np.zeros((n,m),dtype=DTYPE,order='C')
+    cdef np.ndarray[float, ndim=2, mode="c"] AP=np.zeros((n,m),dtype=DTYPE,order='C')
+    cdef np.ndarray[np.float32_t,ndim=2,mode='c'] P = np.zeros((n,m),dtype=DTYPE,order='C')
     cost=c_A+c_B
-    cdef double temp=0.0
+    cdef float temp=0.0
     cost+=float(np.tensordot(C,P))
 
     while it<max_iters_descent:
-        result_code=EMD_wrap(n,m, <double*> a.data, <double*> b.data,
-                             <double*> C.data, <double*>P.data,
-                             <double*> alpha.data, <double*> beta.data,
-                             <double*> &temp, max_iters_ot)
+        result_code=EMD_wrap(n,m, <float*> a.data, <float*> b.data,
+                             <float*> C.data, <float*>P.data,
+                             <float*> alpha.data, <float*> beta.data,
+                             <float*> &temp, max_iters_ot)
 
         if result_code != OPTIMAL:
             # cdef enum ProblemType: INFEASIBLE, OPTIMAL, UNBOUNDED, MAX_ITER_REACHED
@@ -164,7 +164,7 @@ cpdef gw_cython_core(
     :return: A pair (P, gw_dist) where P is a transport plan and gw_dist is the associated cost.
     """
 
-    cdef np.ndarray[np.float64_t,ndim=2,mode='c'] C = np.multiply(Aa[:,np.newaxis],(-2.0*Bb)[np.newaxis,:],order='C')
+    cdef np.ndarray[np.float32_t,ndim=2,mode='c'] C = np.multiply(Aa[:,np.newaxis],(-2.0*Bb)[np.newaxis,:],order='C')
     return gw_cython_init_cost(
         A,
         a,
@@ -380,29 +380,29 @@ cdef sparse_oneD_OT_gw(
 
 def qgw_init_cost(
         # a is the probability distribution on points of A
-        np.ndarray[np.float64_t,ndim=1] a,
+        np.ndarray[np.float32_t,ndim=1] a,
         # A_s=A_sample is a sub_matrix of A, of size ns x ns
-        np.ndarray[np.float64_t,ndim=2] A_s,
+        np.ndarray[np.float32_t,ndim=2] A_s,
         # A_si = A_sample_indices
         # Indices for sampled points of A, of length ns+1
         # Should satisfy A_s[x,y]=A[A_si[x],A_si[y]] for all x,y < ns
         # should satisfy A_si[ns]=n
         np.ndarray[Py_ssize_t,ndim=1] A_si,
         # Probability distribution on sample points of A_s; of length ns
-        np.ndarray[np.float64_t,ndim=1] a_s,
+        np.ndarray[np.float32_t,ndim=1] a_s,
         DTYPE_t c_As,
         # b is the probability distribution on points of B
-        np.ndarray[np.float64_t,ndim=1] b,
+        np.ndarray[np.float32_t,ndim=1] b,
         # B_sample, size ms x ms
-        np.ndarray[np.float64_t,ndim=2] B_s,
+        np.ndarray[np.float32_t,ndim=2] B_s,
         # B_sample_indices, size ms+1
         np.ndarray[Py_ssize_t,ndim=1] B_si,
         # Probability distribution on sample points of B_s; of length ms
-        np.ndarray[np.float64_t,ndim=1] b_s,
+        np.ndarray[np.float32_t,ndim=1] b_s,
         # np.dot(np.multiply(B_s,B_s),b_s)
         DTYPE_t c_Bs,
         # Initial cost matrix of tisze ns x ms
-        np.ndarray[np.float64_t,ndim=2] C,
+        np.ndarray[np.float32_t,ndim=2] C,
 ):
 
     cdef int n = a.shape[0]
@@ -413,7 +413,7 @@ def qgw_init_cost(
     cdef Py_ssize_t j = 0
     cdef int a_local_len
     cdef int b_local_len
-    cdef np.ndarray[np.float64_t,ndim=2] quantized_coupling # size ns x ms
+    cdef np.ndarray[np.float32_t,ndim=2] quantized_coupling # size ns x ms
     
     quantized_coupling, _=gw_cython_init_cost(A_s,a_s,c_As,B_s,b_s,c_Bs,C)
     # We can count, roughly, how many elements we'll need in the coupling matrix.
@@ -462,31 +462,31 @@ def qgw_init_cost(
 # Turning off bounds checking doesn't improve performance on my end.
 def quantized_gw_cython(
         # a is the probability distribution on points of A
-        np.ndarray[np.float64_t,ndim=1] a,
+        np.ndarray[np.float32_t,ndim=1] a,
         # A_s=A_sample is a sub_matrix of A, of size ns x ns
-        np.ndarray[np.float64_t,ndim=2] A_s,
+        np.ndarray[np.float32_t,ndim=2] A_s,
         # A_si = A_sample_indices
         # Indices for sampled points of A, of length ns+1
         # Should satisfy A_s[x,y]=A[A_si[x],A_si[y]] for all x,y < ns
         # should satisfy A_si[ns]=n
         np.ndarray[Py_ssize_t,ndim=1] A_si,
         # Probability distribution on sample points of A_s; of length ns
-        np.ndarray[np.float64_t,ndim=1] a_s,
-        np.ndarray[np.float64_t,ndim=1] A_s_a_s,
+        np.ndarray[np.float32_t,ndim=1] a_s,
+        np.ndarray[np.float32_t,ndim=1] A_s_a_s,
         DTYPE_t c_As,
         # b is the probability distribution on points of B
-        np.ndarray[np.float64_t,ndim=1] b,
+        np.ndarray[np.float32_t,ndim=1] b,
         # B_sample, size ms x ms
-        np.ndarray[np.float64_t,ndim=2] B_s,
+        np.ndarray[np.float32_t,ndim=2] B_s,
         # B_sample_indices, size ms+1
         np.ndarray[Py_ssize_t,ndim=1] B_si,
         # Probability distribution on sample points of B_s; of length ms
-        np.ndarray[np.float64_t,ndim=1] b_s,
+        np.ndarray[np.float32_t,ndim=1] b_s,
         # np.dot(np.multiply(B_s,B_s),b_s)
-        np.ndarray[np.float64_t,ndim=1] B_s_b_s,
+        np.ndarray[np.float32_t,ndim=1] B_s_b_s,
         DTYPE_t c_Bs,
 ):
-    cdef np.ndarray[np.float64_t,ndim=2,mode='c'] C = np.multiply(A_s_a_s[:,np.newaxis],(-2.0*B_s_b_s)[np.newaxis,:],order='C')
+    cdef np.ndarray[np.float32_t,ndim=2,mode='c'] C = np.multiply(A_s_a_s[:,np.newaxis],(-2.0*B_s_b_s)[np.newaxis,:],order='C')
     return qgw_init_cost(
         a,
         A_s,

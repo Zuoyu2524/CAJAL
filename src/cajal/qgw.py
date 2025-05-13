@@ -52,6 +52,7 @@ def distance_inverse_cdf(dist_mat: Array, measure: Array):
     interval such that f_X^{-1}(u) is the distance `d` in X such that u is the
     proportion of pairs points in X that are at least as close together as `d`.
     """
+    dist_mat = dist_mat.astype(np.float32)
     if len(dist_mat.shape) > 2:
         raise Exception("Array shape is " + str(dist_mat.shape) + ", should be 1D")
     elif len(dist_mat.shape) == 2 and dist_mat.shape[0] == dist_mat.shape[1]:
@@ -59,16 +60,18 @@ def distance_inverse_cdf(dist_mat: Array, measure: Array):
 
     index_X = np.argsort(dist_mat)
     dX = np.sort(dist_mat)
-    mX_otimes_mX_sq = np.matmul(measure[:, np.newaxis], measure[np.newaxis, :])
+    mX_otimes_mX_sq = np.matmul(measure[:, np.newaxis], measure[np.newaxis, :], dtype=np.float32)
     mX_otimes_mX = (
         2 * squareform(mX_otimes_mX_sq, force="tovector", checks=False)[index_X]
     )
 
     f = np.insert(dX, 0, 0.0)
-    u = np.insert(mX_otimes_mX, 0, measure @ measure)
+    u = np.insert(mX_otimes_mX.astype(np.float32), 0, measure @ measure)
 
     return (f, u)
 
+def prepare_array(arr, dtype=np.float32):
+    return np.ascontiguousarray(arr, dtype=dtype)
 
 def slb_distribution(
     dX: Array,
@@ -143,7 +146,8 @@ def slb_parallel_memory(
         slb_dists = pool.imap_unordered(
             _global_slb_pool, it.combinations(iter(range(N)), 2), chunksize=chunksize
         )
-        arr = np.zeros((N, N))
+        # slb_dists = slb_dists.astype(np.float32)
+        arr = np.zeros((N, N), dtype=np.float32)
         for i, j, x in slb_dists:
             arr[i, j] = x
             arr[j, i] = x
@@ -172,7 +176,8 @@ def slb_parallel(
     slb_dmat = slb_parallel_memory(cell_dms, distributions, num_processes, chunksize)
     NN = len(names)
     total_num_pairs = int((NN * (NN - 1)) / 2)
-    ij = tqdm(it.combinations(range(NN), 2), total=total_num_pairs)
+    # ij = tqdm(it.combinations(range(NN), 2), total=total_num_pairs)
+    ij = it.combinations(range(NN), 2)
     with open(out_csv, "w", newline="") as outfile:
         csv_writer = csv.writer(outfile)
         csv_writer.writerow(["first_object", "second_object", "slb_dist"])
@@ -219,9 +224,9 @@ def quantize_icdm_reduced(
         local_dmat = A[:, indices][indices, :]
         medoid_list.append(np.argmin(sum(local_dmat)))
         new_dist_probs.append(np.sum(p[indices]))
-    medoid_indices = np.array(medoid_list)
+    medoid_indices = np.array(medoid_list, dtype=np.int32)
     medoid_icdm = A[medoid_indices, :][:, medoid_indices]
-    return medoid_icdm, np.array(new_dist_probs)
+    return medoid_icdm.astype(np.float32), np.array(new_dist_probs, dtype=np.float32)
 
 
 class quantized_icdm:
@@ -344,9 +349,9 @@ class quantized_icdm:
         q = []
         for i in range(self.ns):
             q.append(np.sum(distribution[q_indices[i] : q_indices[i + 1]]))
-        q_arr = np.array(q, dtype=np.float64, order="C")
+        q_arr = np.array(q, dtype=np.float32, order="C")
         self.q_distribution = q_arr
-        assert abs(np.sum(q_arr) - 1.0) < 1e-7
+        assert abs(np.sum(q_arr) - 1.0) < 1e-6
         medoids = np.nonzero(np.r_[1, np.diff(clusters_sort)])[0]
 
         A_s = icdm[medoids, :][:, medoids]
@@ -370,7 +375,7 @@ class quantized_icdm:
         method: Literal["kmeans"] | Literal["hierarchical"] = "kmeans",
     ):
         """Construct a quantized icdm from a point cloud."""
-        dmat = squareform(pdist(X), force="tomatrix")
+        dmat = squareform(pdist(X), force="tomatrix").astype(np.float32)
         if method == "hierarchical":
             return quantized_icdm(dmat, distribution, num_clusters)
         # Otherwise use kmeans.
@@ -382,7 +387,7 @@ class quantized_icdm:
 def quantized_gw(
     A: quantized_icdm,
     B: quantized_icdm,
-    initial_plan: Optional[npt.NDArray[np.float64]] = None,
+    initial_plan: Optional[npt.NDArray[np.float32]] = None,
 ) -> tuple[sparse.csr_matrix, float]:
     """
     Compute the quantized Gromov-Wasserstein distance between two quantized metric measure spaces.
@@ -391,33 +396,33 @@ def quantized_gw(
     """
     if initial_plan is None:
         T_rows, T_cols, T_data = quantized_gw_cython(
-            A.distribution,
-            A.sub_icdm,
+            A.distribution.astype(np.float32),
+            A.sub_icdm.astype(np.float32),
             A.q_indices,
-            A.q_distribution,
-            A.A_s_a_s,
+            A.q_distribution.astype(np.float32),
+            A.A_s_a_s.astype(np.float32),
             A.c_As,
-            B.distribution,
-            B.sub_icdm,
+            B.distribution.astype(np.float32),
+            B.sub_icdm.astype(np.float32),
             B.q_indices,
-            B.q_distribution,
-            B.A_s_a_s,
+            B.q_distribution.astype(np.float32),
+            B.A_s_a_s.astype(np.float32),
             B.c_As,
         )
     else:
         init_cost = -2 * (A.sub_icdm @ initial_plan @ B.sub_icdm)
         T_rows, T_cols, T_data = qgw_init_cost(
-            A.distribution,
-            A.sub_icdm,
+            A.distribution.astype(np.float32),
+            A.sub_icdm.astype(np.float32),
             A.q_indices,
-            A.q_distribution,
+            A.q_distribution.astype(np.float32),
             A.c_As,
-            B.distribution,
-            B.sub_icdm,
+            B.distribution.astype(np.float32),
+            B.sub_icdm.astype(np.float32),
             B.q_indices,
-            B.q_distribution,
+            B.q_distribution.astype(np.float32),
             B.c_As,
-            init_cost,
+            init_cost.astype(np.float32),
         )
 
     P = sparse.coo_matrix((T_data, (T_rows, T_cols)), shape=(A.n, B.n)).tocsr()
@@ -476,10 +481,11 @@ def quantized_gw_parallel_memory(
     with Pool(
         initializer=_init_qgw_pool, initargs=(quantized_cells,), processes=num_processes
     ) as pool:
-        gw_dists = tqdm(
-            pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize),
-            total=total_num_pairs,
-        )  # type: ignore[assignment]
+        # gw_dists = tqdm(
+        #     pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize),
+        #     total=total_num_pairs,
+        # )  # type: ignore[assignment]
+        gw_dists = pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize)
         gw_dists_list = list(gw_dists)
     gw_dists_list.sort(key=lambda p: p[0] * N + p[1])
     return gw_dists_list
@@ -510,7 +516,8 @@ def quantized_gw_parallel(
     """
     if verbose:
         print("Reading files...")
-        cells = [cell for cell in tqdm(cell_iterator_csv(intracell_csv_loc))]
+        # cells = [cell for cell in tqdm(cell_iterator_csv(intracell_csv_loc))]
+        cells = [cell for cell in cell_iterator_csv(intracell_csv_loc)]
         names, cell_dms = zip(*cells)
         del cells
     else:
@@ -522,8 +529,11 @@ def quantized_gw_parallel(
             (cell_dm, uniform(cell_dm.shape[0]), num_clusters, None)
             for cell_dm in cell_dms
         ]
+        # quantized_cells = list(
+        #     tqdm(pool.imap(quantized_icdm.of_tuple, args), total=len(names))
+        # )
         quantized_cells = list(
-            tqdm(pool.imap(quantized_icdm.of_tuple, args), total=len(names))
+            pool.imap(quantized_icdm.of_tuple, args)
         )
 
     print("Computing pairwise Gromov-Wasserstein distances...")
@@ -548,7 +558,7 @@ def _cutoff_of(
     nn: int,
 ):
     # maxval = np.max(gw_dmat)
-    gw_copy = np.copy(gw_dmat)
+    gw_copy = np.copy(gw_dmat).astype(np.float32)
     # gw_copy[~gw_known]=maxval
     gw_copy[~gw_known] = (slb_dmat + median)[~gw_known]
     gw_copy.partition(nn + 1, axis=1)

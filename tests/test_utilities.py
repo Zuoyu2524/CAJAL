@@ -1,4 +1,9 @@
-from src.cajal.utilities import (
+import sys
+sys.path.insert(0, '../src')
+
+from cajal.swc import preprocessor_eu
+from cajal.sample_swc import compute_icdm_all_euclidean
+from cajal.utilities import (
     read_gw_dists,
     dist_mat_of_dict,
     read_gw_couplings,
@@ -8,6 +13,7 @@ from src.cajal.utilities import (
     louvain_clustering,
 )
 import numpy as np
+from os.path import join
 
 
 def test():
@@ -34,3 +40,8 @@ def test():
     avg_shape_spt(cell_names, gw_dist_dictionary, icdm_dict, coupling_mats, 3)
     leiden_clustering(gmat)
     louvain_clustering(gmat, 3)
+
+
+if __name__ == "__main__":
+    test()
+    print("passed")

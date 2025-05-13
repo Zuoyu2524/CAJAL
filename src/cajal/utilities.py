@@ -66,7 +66,7 @@ def dist_mat_of_dict(
     gw_dist_dictionary: dict[tuple[str, str], float],
     cell_names: Iterable[str],
     as_squareform: bool = True,
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.float32]:
     """
     Given a distance dictionary and a list of cell names, return a square distance \
     matrix containing the pairwise GW distances between all cells in `cell_names`, and \
@@ -84,7 +84,7 @@ def dist_mat_of_dict(
     for first_cell, second_cell in it.combinations(cell_names, 2):
         first_cell, second_cell = sorted([first_cell, second_cell])
         dist_list.append(gw_dist_dictionary[(first_cell, second_cell)])
-    arr = np.array(dist_list, dtype=np.float64)
+    arr = np.array(dist_list, dtype=np.float32)
     if as_squareform:
         return squareform(arr, force="tomatrix")
     return arr
@@ -122,7 +122,7 @@ def read_gw_dists_pd(gw_dist_file_loc: str, header: bool):
     cell_names, cell_dict = read_gw_dists(gw_dist_file_loc, header)
     gw_dmat = dist_mat_of_dict(cell_dict, cell_names, as_squareform=True)
     return pd.Series(
-        np.ndarray.flatten(gw_dmat),
+        gw_dmat.flatten(),
         index=pd.MultiIndex.from_product(
             (cell_names, cell_names), names=["first", "second"]
         ),
@@ -215,7 +215,7 @@ class Err(Generic[T]):
 def write_csv_block(
     out_csv: str,
     sidelength: int,
-    dist_mats: Iterator[tuple[str, Union[Err[T], npt.NDArray[np.float64]]]],
+    dist_mats: Iterator[tuple[str, Union[Err[T], npt.NDArray[np.float32]]]],
     batch_size: int,
     **kwargs,
 ) -> list[tuple[str, Err[T]]]:
@@ -258,7 +258,7 @@ def write_csv_block(
 def write_npz(
     out_npz: str,
     sidelength: int,
-    dist_mats: Iterator[tuple[str, Union[Err[T], npt.NDArray[np.float64]]]],
+    dist_mats: Iterator[tuple[str, Union[Err[T], npt.NDArray[np.float32]]]],
     batch_size: int,
     **kwargs,
 ) -> list[tuple[str, Err[T]]]:
@@ -299,7 +299,7 @@ def write_npz(
     return failed_cells
 
 
-def knn_graph(dmat: npt.NDArray[np.float64], nn: int) -> npt.NDArray[np.int_]:
+def knn_graph(dmat: npt.NDArray[np.float32], nn: int) -> npt.NDArray[np.int_]:
     """
     :param dmat: squareform distance matrix
     :param nn: (nearest neighbors) - in the returned graph, nodes v and w will be \
@@ -317,7 +317,7 @@ def knn_graph(dmat: npt.NDArray[np.float64], nn: int) -> npt.NDArray[np.int_]:
 
 
 def louvain_clustering(
-    gw_mat: npt.NDArray[np.float64], nn: int
+    gw_mat: npt.NDArray[np.float32], nn: int
 ) -> npt.NDArray[np.int_]:
     """
     Compute clustering of cells based on GW distance, using Louvain clustering on a
@@ -341,7 +341,7 @@ def louvain_clustering(
 
 
 def leiden_clustering(
-    gw_mat: npt.NDArray[np.float64],
+    gw_mat: npt.NDArray[np.float32],
     nn: int = 5,
     resolution: Optional[float] = None,
     seed: Optional[int] = None,
@@ -380,7 +380,7 @@ def leiden_clustering(
                 leidenalg.CPMVertexPartition,
                 resolution_parameter=resolution,
                 seed=seed,
-            )[0]
+            )[0], dtype=np.int32
         )
     return leiden_clus
 
@@ -398,16 +398,16 @@ def identify_medoid(
     ]
 
 
-def cap(a: npt.NDArray[np.float64], c: float) -> npt.NDArray[np.float64]:
+def cap(a: npt.NDArray[np.float32], c: float) -> npt.NDArray[np.float32]:
     """
     Return a copy of `a` where values above `c` in `a` are replaced with `c`.
     """
-    a1 = np.copy(a)
+    a1 = np.copy(a).astype(np.float32)
     a1[a1 >= c] = c
     return a1
 
 
-def step_size(icdm: npt.NDArray[np.float64]) -> float:
+def step_size(icdm: npt.NDArray[np.float32]) -> float:
     """
     Heuristic to estimate the step size a neuron was sampled at.
     :param icdm: Vectorform distance matrix.
@@ -418,9 +418,9 @@ def step_size(icdm: npt.NDArray[np.float64]) -> float:
 def orient(
     medoid: str,
     obj_name: str,
-    iodm: npt.NDArray[np.float64],
+    iodm: npt.NDArray[np.float32],
     gw_coupling_mat_dict: dict[tuple[str, str], coo_array],
-) -> npt.NDArray[np.float64]:
+) -> npt.NDArray[np.float32]:
     """
     :param medoid: String naming the medoid object, its key in iodm
     :param obj_name: String naming the object to be compared to
@@ -440,7 +440,7 @@ def orient(
 def avg_shape(
     obj_names: list[str],
     gw_dist_dict: dict[tuple[str, str], float],
-    iodms: dict[str, npt.NDArray[np.float64]],
+    iodms: dict[str, npt.NDArray[np.float32]],
     gw_coupling_mat_dict: dict[tuple[str, str], coo_array],
 ):
     """
@@ -464,7 +464,7 @@ def avg_shape(
     ss = step_size(medoid_matrix)
     assert ss > 0
     medoid_matrix = medoid_matrix / step_size(medoid_matrix)
-    dmat_accumulator_uncapped = np.copy(medoid_matrix)
+    dmat_accumulator_uncapped = np.copy(medoid_matrix).astype(np.float32)
     dmat_accumulator_capped = cap(medoid_matrix, 2.0)
     others = (obj for obj in obj_names if obj != medoid)
     for obj_name in others:
@@ -497,10 +497,10 @@ def avg_shape(
 def avg_shape_spt(
     cell_names: list[str],
     gw_dist_dict: dict[tuple[str, str], float],
-    icdms: dict[str, npt.NDArray[np.float64]],
+    icdms: dict[str, npt.NDArray[np.float32]],
     gw_coupling_mat_dict: dict[tuple[str, str], coo_array],
     k: int,
-) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+) -> tuple[npt.NDArray[np.float32], npt.NDArray[np.float32]]:
     """Given a set of cells together with their intracell distance matrices and
     the (precomputed) pairwise GW coupling matrices between cells, construct a
     morphological "average" of cells in the cluster. This function:
@@ -655,9 +655,9 @@ def icdm_csv_validate(intracell_csv_loc: str) -> None:
             linenum += 1
 
 
-def uniform(n: int) -> npt.NDArray[np.float64]:
+def uniform(n: int) -> npt.NDArray[np.float32]:
     """Compute the uniform distribution on n points, as a vector of floats."""
-    return np.ones((n,), dtype=float) / n
+    return np.ones((n,), dtype=np.float32) / n
 
 
 def n_c_2(n: int):
