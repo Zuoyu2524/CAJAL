@@ -1,13 +1,13 @@
 import sys
-sys.path.insert(0, 'CAJAL/src')
+sys.path.insert(0, './src')
 
 from cajal.qgw import quantized_gw_parallel
 import os
 from os.path import join
 import psutil
 
-bd = "./swc_test_out"  # Base directory
-rd = "./CAJAL/tests/test_mem/out"
+bd = "../swc_test_out"  # Base directory
+rd = "./tests/test_mem/out"
 
 @profile
 def test_qgw():
@@ -19,7 +19,11 @@ def test_qgw():
     )
 
 if __name__ == "__main__":
-    test_qgw()
     process = psutil.Process(os.getpid())
-    memory_info = process.memory_info()
-    print(f"Memory usage: {memory_info.rss / 1024 / 1024} MB") 
+    memory_before = process.memory_info().rss  
+
+    test_qgw()
+
+    memory_after = process.memory_info().rss  
+    print(f"Memory used by quantized_gw_parallel: {(memory_after) / 1024 / 1024:.4f} MB")
+    print(f"Memory used by function: {(memory_after - memory_before) / 1024 / 1024:.4f} MB")

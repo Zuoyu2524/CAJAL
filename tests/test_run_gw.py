@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '../src')
+sys.path.insert(0, './src')
 from cajal.run_gw import compute_gw_distance_matrix
 from cajal.utilities import (
     read_gw_dists,

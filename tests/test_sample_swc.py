@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '../src')
+sys.path.insert(0, './src')
 # from src.cajal.sample_swc import compute_icdm_all_euclidean, compute_icdm_all_geodesic
 from cajal.swc import get_filenames, default_name_validate
 from cajal.sample_swc import (

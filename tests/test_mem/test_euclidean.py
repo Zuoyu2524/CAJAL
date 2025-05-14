@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, 'CAJAL/src')
+sys.path.insert(0, './src')
 
 import cajal.sample_swc
 import cajal.swc
@@ -7,8 +7,8 @@ import os
 from os.path import join
 import psutil
 
-bd = "./subsampled"  # Base directory
-rd = "./CAJAL/tests/test_mem/out"
+bd = "../subsampled"  # Base directory
+rd = "./tests/test_mem/out"
 
 @profile
 def test_euclidean_dist():
@@ -26,7 +26,11 @@ def test_euclidean_dist():
         n_sample=100  # number of sample points
     )
 if __name__ == '__main__':
-    test_euclidean_dist()
     process = psutil.Process(os.getpid())
-    memory_info = process.memory_info()
-    print(f"Memory usage: {memory_info.rss / 1024 / 1024} MB") 
+    memory_before = process.memory_info().rss 
+
+    test_euclidean_dist()
+
+    memory_after = process.memory_info().rss  
+    print(f"Memory used by euclidean_dist: {(memory_after) / 1024 / 1024:.4f} MB")
+    print(f"Memory used by function: {(memory_after - memory_before) / 1024 / 1024:.4f} MB")

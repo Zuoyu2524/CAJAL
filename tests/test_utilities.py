@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, '../src')
+sys.path.insert(0, './src')
 
 from cajal.swc import preprocessor_eu
 from cajal.sample_swc import compute_icdm_all_euclidean

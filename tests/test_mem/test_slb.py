@@ -1,11 +1,15 @@
+import sys
+sys.path.insert(0, './src')
+
 from cajal.qgw import slb_parallel
 import os
 from os.path import join
 import psutil
  
 # Setup logging
-bd = "./swc_test_out"
-rd = "./CAJAL/tests/test_mem/out"
+bd = "../swc_test_out"
+rd = "./tests/test_mem/out"
+
 @profile
 def test_slb():
     slb_parallel(
@@ -16,7 +20,11 @@ def test_slb():
 
 
 if __name__ == "__main__":
-    test_slb()
     process = psutil.Process(os.getpid())
-    memory_info = process.memory_info()
-    print(f"Memory usage: {memory_info.rss / 1024 / 1024} MB") 
+    memory_before = process.memory_info().rss  
+    
+    test_slb()  
+    
+    memory_after = process.memory_info().rss  
+    print(f"Memory used by slb_parallel: {(memory_after) / 1024 / 1024:.4f} MB")
+    print(f"Memory used by function: {(memory_after - memory_before) / 1024 / 1024:.4f} MB")

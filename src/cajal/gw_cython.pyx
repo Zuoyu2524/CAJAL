@@ -73,8 +73,8 @@ def n_c_2(int n):
 
 
 class GW_cell:
-    dmat : npt.NDArray[np.float_] # Squareform distance matrix
-    distribution : npt.NDArray[np.float_] # Probability distribution
+    dmat : npt.NDArray[np.float32_t] # Squareform distance matrix
+    distribution : npt.NDArray[np.float32_t] # Probability distribution
     dmat_dot_dist : npt.NDArray[DTYPE] # Matrix-vector product of the distance
                                        # matrix with the probability
                                        # distribution

@@ -1,6 +1,5 @@
 import sys
-sys.path.insert(0, '../src')
-
+sys.path.insert(0, './src')
 from cajal.qgw import slb_parallel
 from cajal.combined_slb_qgw import combined_slb_quantized_gw
 import os

@@ -155,13 +155,13 @@ def _gw_index(p: tuple[int, int]) -> tuple[int, int, Matrix, float]:
     A = _GW_CELLS[i]  # type: ignore[name-defined]
     B = _GW_CELLS[j]  # type: ignore[name-defined]
     coupling_mat, gw_dist = gw_cython_core(
-        A.dmat,
-        A.distribution,
-        A.dmat_dot_dist,
+        A.dmat.astype(np.float32),
+        A.distribution.astype(np.float32),
+        A.dmat_dot_dist.astype(np.float32),
         A.cell_constant,
-        B.dmat,
-        B.distribution,
-        B.dmat_dot_dist,
+        B.dmat.astype(np.float32),
+        B.distribution.astype(np.float32),
+        B.dmat_dot_dist.astype(np.float32),
         B.cell_constant,
     )
     return (i, j, coupling_mat, gw_dist)
@@ -203,7 +203,7 @@ def csv_output_writer(
         if write_gw_coupling_mats:
             first_names.append(names[i])
             second_names.append(names[j])
-            coo = coo_matrix(coupling_mat.astype(np.float32))
+            coo = coo_matrix(coupling_mat)
             coo_data.append(coo.data)
             coo_row.append(coo.row)
             coo_col.append(coo.col)
@@ -213,11 +213,11 @@ def csv_output_writer(
     if write_gw_coupling_mats:
         np.savez(
             gw_coupling_mat_npz,
-            first_names=np.array(first_names, dtype=np.float32),
-            second_names=np.array(second_names, dtype=np.float32),
-            coo_data=np.stack(coo_data, dtype=np.float32),
-            coo_row=np.stack(coo_row, dtype=np.float32),
-            coo_col=np.stack(coo_col, dtype=np.float32),
+            first_names=np.array(first_names),
+            second_names=np.array(second_names),
+            coo_data=np.stack(coo_data),
+            coo_row=np.stack(coo_row),
+            coo_col=np.stack(coo_col),
         )
 
 

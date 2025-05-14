@@ -1,12 +1,12 @@
 import sys
-sys.path.insert(0, 'CAJAL/src')
+sys.path.insert(0, './src')
 
 from cajal.qgw import quantized_gw_parallel
 from os.path import join
 import timeit
 
-bd = "./swc_test_out"
-rd = "./CAJAL/tests/test_time/out"
+bd = "../swc_test_out"
+rd = "./tests/test_time/out"
 
 def test_qgw():
     quantized_gw_parallel(

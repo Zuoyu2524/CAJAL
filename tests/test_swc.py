@@ -4,8 +4,7 @@ from shutil import rmtree
 from typing import Union
 
 import sys
-sys.path.insert(0, '../src')
-
+sys.path.insert(0, './src')
 from cajal.utilities import Err
 from cajal.swc import (
     batch_filter_and_preprocess,

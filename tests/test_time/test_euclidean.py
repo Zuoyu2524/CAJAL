@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0, 'CAJAL/src')
+sys.path.insert(0, './src')
 
 import cajal.sample_swc
 import cajal.swc
@@ -7,8 +7,8 @@ import os
 from os.path import join
 import timeit
 
-bd = "./subsampled"  # Base directory
-rd = "./CAJAL/tests/test_time/out"
+bd = "../subsampled"  # Base directory
+rd = "./tests/test_time/out"
 
 def test_euclidean_dist():
     cajal.sample_swc.compute_icdm_all_euclidean(
