@@ -15,7 +15,7 @@ wait
 python ./tests/test_time/test_slb.py > "$LOG_DIR/time_2_run_0.log" 2>&1 &
 wait
 
-# echo "Memory evaluation"
+echo "Memory evaluation"
 
 file_list=("test_euclidean.py" "test_qgw.py" "test_slb.py")
 
