@@ -1,19 +1,19 @@
 #!/bin/bash
 
-LOG_DIR="../logs_new"
+LOG_DIR="../logs_new_mem"
 mkdir -p "$LOG_DIR"
 
 NUM_TESTS=10
-SLEEP_TIME=10  
+SLEEP_TIME=20  
 
-echo "Time evaluation"
+# echo "Time evaluation"
 
-python ./tests/test_time/test_euclidean.py > "$LOG_DIR/time_0_run_0.log" 2>&1 &
-wait
-python ./tests/test_time/test_qgw.py > "$LOG_DIR/time_1_run_0.log" 2>&1 &
-wait
-python ./tests/test_time/test_slb.py > "$LOG_DIR/time_2_run_0.log" 2>&1 &
-wait
+# python ./tests/test_time/test_euclidean.py > "$LOG_DIR/time_0_run_0.log" 2>&1 &
+# wait
+# python ./tests/test_time/test_qgw.py > "$LOG_DIR/time_1_run_0.log" 2>&1 &
+# wait
+# python ./tests/test_time/test_slb.py > "$LOG_DIR/time_2_run_0.log" 2>&1 &
+# wait
 
 echo "Memory evaluation"
 

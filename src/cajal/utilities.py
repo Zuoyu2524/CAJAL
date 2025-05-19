@@ -592,7 +592,7 @@ def cell_iterator_csv(
         next(csv_reader)
         while ell := next(csv_reader, None):
             cell_name = ell[0]
-            arr = np.array([float(x) for x in ell[1:]], dtype=np.float64)
+            arr = np.array([float(x) for x in ell[1:]], dtype=np.float32)
             if as_squareform:
                 arr = squareform(arr, force="tomatrix")
             yield cell_name, arr
