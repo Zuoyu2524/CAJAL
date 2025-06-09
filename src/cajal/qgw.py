@@ -33,7 +33,6 @@ from .run_gw import (
     cell_iterator_csv,
     uniform,
 )
-from .run_gw import _batched, cell_iterator_csv, uniform
 
 from .slb import l2
 
@@ -467,27 +466,50 @@ def quantized_gw_parallel_memory(
     quantized_cells: Collection[quantized_icdm],
     num_processes: int,
     chunksize: int = 20,
+    N_B: int = None
 ):
     """
     Compute the quantized Gromov-Wasserstein distances between all pairs of cells in the list.
 
     Coupling matrices will be discarded.
     """
-    N = len(quantized_cells)
-    total_num_pairs = int((N * (N - 1)) / 2)
-    # index_pairs = tqdm(it.combinations(iter(range(N)), 2), total=total_num_pairs)
-    index_pairs = it.combinations(iter(range(N)), 2)
-    gw_dists: Iterator[tuple[int, int, float]]
-    with Pool(
-        initializer=_init_qgw_pool, initargs=(quantized_cells,), processes=num_processes
-    ) as pool:
-        # gw_dists = tqdm(
-        #     pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize),
-        #     total=total_num_pairs,
-        # )  # type: ignore[assignment]
-        gw_dists = pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize)
-        gw_dists_list = list(gw_dists)
-    gw_dists_list.sort(key=lambda p: p[0] * N + p[1])
+    if N_B is not None:
+        N_A = int(len(quantized_cells) - N_B)
+
+        total_num_pairs = int((N_A * N_B))
+
+        # index_pairs = tqdm(((i, N_A + j) for i in range(N_A) for j in range(N_B)), total=total_num_pairs)
+        index_pairs = [(i, N_A+j) for i in range(N_A) for j in range(N_B)]
+
+        gw_dists: Iterator[tuple[int, int, float]]
+
+        with Pool(
+            initializer=_init_qgw_pool, initargs=(quantized_cells,), processes=num_processes
+        ) as pool:
+            # gw_dists = tqdm(
+            #     pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize),
+            #     total=total_num_pairs,
+            # )  
+            gw_dists = pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize)
+            gw_dists_list = list(gw_dists)
+        gw_dists_list.sort(key=lambda p: p[0] * N_A + p[1])
+    else:
+        N = len(quantized_cells)
+        total_num_pairs = int((N * (N - 1)) / 2)
+        # index_pairs = tqdm(it.combinations(iter(range(N)), 2), total=total_num_pairs)
+        index_pairs = it.combinations(iter(range(N)), 2)
+        gw_dists: Iterator[tuple[int, int, float]]
+        with Pool(
+            initializer=_init_qgw_pool, initargs=(quantized_cells,), processes=num_processes
+        ) as pool:
+            # gw_dists = tqdm(
+            #     pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize),
+            #     total=total_num_pairs,
+            # )  # type: ignore[assignment]
+            gw_dists = pool.imap_unordered(_quantized_gw_index, index_pairs, chunksize=chunksize)
+            gw_dists_list = list(gw_dists)
+
+        gw_dists_list.sort(key=lambda p: p[0] * N + p[1])
     return gw_dists_list
 
 
@@ -496,6 +518,7 @@ def quantized_gw_parallel(
     num_processes: int,
     num_clusters: int,
     out_csv: str,
+    intracell_csv_loc_B: str = None,
     chunksize: int = 20,
     verbose: bool = False,
     write_blocksize: int = 100,
@@ -514,36 +537,79 @@ def quantized_gw_parallel(
          the quantized GW distances will be written
     :param chunksize: How many q-GW distances should be computed at a time by each parallel process.
     """
-    if verbose:
-        print("Reading files...")
-        # cells = [cell for cell in tqdm(cell_iterator_csv(intracell_csv_loc))]
-        cells = [cell for cell in cell_iterator_csv(intracell_csv_loc)]
-        names, cell_dms = zip(*cells)
-        del cells
+    if intracell_csv_loc_B is not None:
+        if verbose:
+            print("Reading files...")
+            # cells = [cell for cell in tqdm(cell_iterator_csv(intracell_csv_loc))]
+            cells_A = [cell for cell in cell_iterator_csv(intracell_csv_loc)]
+            cells_B = [cell for cell in cell_iterator_csv(intracell_csv_loc_B)]
+            names_A, cell_dms_A = zip(*cells_A)
+            names_B, cell_dms_B = zip(*cells_B)
+            del cells_A, cells_B
+        
+        else:
+            names_A, cell_dms_A = zip(*cell_iterator_csv(intracell_csv_loc))
+            names_B, cell_dms_B = zip(*cell_iterator_csv(intracell_csv_loc_B))
+        N_A = len(cell_dms_A)
+        N_B = len(cell_dms_B)
+        cell_dms = cell_dms_A + cell_dms_B
+        names = names_A + names_B
+        del cell_dms_A, cell_dms_B, names_A, names_B
+
+        if verbose:
+            print("Quantizing intracell distance matrices...")
+        with Pool(processes=num_processes) as pool:
+            args = [
+                (cell_dm, uniform(cell_dm.shape[0]), num_clusters, None)
+                for cell_dm in cell_dms
+            ]
+            # quantized_cells = list(
+            #     tqdm(pool.imap(quantized_icdm.of_tuple, args), total=len(names))
+            # )
+            quantized_cells = list(
+                pool.imap(quantized_icdm.of_tuple, args)
+            )
+
+        print("Computing pairwise Gromov-Wasserstein distances...")
+        gw_dists = quantized_gw_parallel_memory(quantized_cells, num_processes, chunksize, N_B)
+
+        with open(out_csv, "w", newline="") as outcsvfile:
+            csvwriter = csv.writer(outcsvfile)
+            csvwriter.writerow(["first_object", "second_object", "quantized_gw"])
+            for i, j, gw_dist in gw_dists:
+                csvwriter.writerow((names[i], names[j], gw_dist))
+
     else:
-        names, cell_dms = zip(*cell_iterator_csv(intracell_csv_loc))
-    if verbose:
-        print("Quantizing intracell distance matrices...")
-    with Pool(processes=num_processes) as pool:
-        args = [
-            (cell_dm, uniform(cell_dm.shape[0]), num_clusters, None)
-            for cell_dm in cell_dms
-        ]
-        # quantized_cells = list(
-        #     tqdm(pool.imap(quantized_icdm.of_tuple, args), total=len(names))
-        # )
-        quantized_cells = list(
-            pool.imap(quantized_icdm.of_tuple, args)
-        )
+        if verbose:
+            print("Reading files...")
+            # cells = [cell for cell in tqdm(cell_iterator_csv(intracell_csv_loc))]
+            cells = [cell for cell in cell_iterator_csv(intracell_csv_loc)]
+            names, cell_dms = zip(*cells)
+            del cells
+        else:
+            names, cell_dms = zip(*cell_iterator_csv(intracell_csv_loc))
+        if verbose:
+            print("Quantizing intracell distance matrices...")
+        with Pool(processes=num_processes) as pool:
+            args = [
+                (cell_dm, uniform(cell_dm.shape[0]), num_clusters, None)
+                for cell_dm in cell_dms
+            ]
+            # quantized_cells = list(
+            #     tqdm(pool.imap(quantized_icdm.of_tuple, args), total=len(names))
+            # )
+            quantized_cells = list(
+                pool.imap(quantized_icdm.of_tuple, args)
+            )
 
-    print("Computing pairwise Gromov-Wasserstein distances...")
-    gw_dists = quantized_gw_parallel_memory(quantized_cells, num_processes, chunksize)
+        print("Computing pairwise Gromov-Wasserstein distances...")
+        gw_dists = quantized_gw_parallel_memory(quantized_cells, num_processes, chunksize)
 
-    with open(out_csv, "w", newline="") as outcsvfile:
-        csvwriter = csv.writer(outcsvfile)
-        csvwriter.writerow(["first_object", "second_object", "quantized_gw"])
-        for i, j, gw_dist in gw_dists:
-            csvwriter.writerow((names[i], names[j], gw_dist))
+        with open(out_csv, "w", newline="") as outcsvfile:
+            csvwriter = csv.writer(outcsvfile)
+            csvwriter.writerow(["first_object", "second_object", "quantized_gw"])
+            for i, j, gw_dist in gw_dists:
+                csvwriter.writerow((names[i], names[j], gw_dist))
 
 
 # A BooleanSquareMatrix is a square matrix of booleans.
